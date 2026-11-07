@@ -3,7 +3,8 @@
 # macOS no deja a este icono leer la carpeta Documentos, así que: si el
 # servidor ya está en marcha abre el navegador, y si no, pide a Terminal
 # (que sí tiene permiso) que ejecute "Iniciar Mejorador Stems.command".
-APP_DIR="/Users/franantartico/Documents/APLICACIONES CLAUDE/MEJORADOR STEMS"
+# carpeta de la app = la que contiene este .app (calculada como texto: no necesita leer Documentos)
+APP_DIR="${0%/Mejorador Stems.app/*}"
 
 for P in $(seq 8915 8919); do
   if /usr/bin/curl -s -m 1 "http://127.0.0.1:$P/api/config" | /usr/bin/grep -q '"mejorador-stems"'; then

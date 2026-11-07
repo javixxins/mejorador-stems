@@ -32,7 +32,7 @@ Crea el entorno `.venv` e instala las dependencias de `requirements.txt`.
 
 **App**: doble clic en `Mejorador Stems.app` (o en `Iniciar Mejorador Stems.command`). Arranca el servidor en `http://127.0.0.1:8915` y abre el navegador. Para pararlo: `Detener Mejorador Stems.command`.
 
-> El icono `.app` lleva escrita la ruta de la carpeta. Si mueves el proyecto, edita `APP_DIR` en `Mejorador Stems.app/Contents/MacOS/launcher`.
+> El icono `.app` localiza solo la carpeta en la que está, así que puedes mover o clonar el proyecto donde quieras. La primera vez, macOS puede pedir permiso para que Terminal abra el script de inicio.
 
 **Por lotes, sin abrir la app**: doble clic en `Restaurar archivos.command`, o desde Terminal:
 
