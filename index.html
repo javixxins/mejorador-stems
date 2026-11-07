@@ -1,0 +1,1197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mejorador de Stems</title>
+<style>
+:root{
+  --bg:#0f1115;--panel:#171a21;--panel2:#1e222b;--line:#2a2f3a;--txt:#e7e9ee;--mute:#8d94a3;
+  --acc:#e2a54a;--acc2:#5fb6c9;--ok:#6cc58a;--warn:#e7b84a;--bad:#e2685b;--orig:#9aa3b5;
+  --r:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:18px 24px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#151821,#0f1115)}
+header .logo{width:38px;height:38px;border-radius:10px;background:radial-gradient(circle at 30% 30%,#f3c47a,#b8742a);display:grid;place-items:center;font-size:20px}
+header h1{font-size:19px;margin:0;font-weight:650;letter-spacing:.2px}
+header p{margin:0;color:var(--mute);font-size:12.5px}
+main{max-width:1280px;margin:0 auto;padding:20px 24px 60px;display:flex;flex-direction:column;gap:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.card h2{font-size:14px;margin:0 0 10px;font-weight:650;letter-spacing:.3px;text-transform:uppercase;color:#cfd3dc;display:flex;align-items:center;gap:8px}
+.muted{color:var(--mute)}
+button{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 14px;cursor:pointer;transition:.15s}
+button:hover:not(:disabled){border-color:#4a5263;background:#252a35}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--acc);border-color:var(--acc);color:#1b1307;font-weight:650}
+button.primary:hover:not(:disabled){background:#efb45c}
+select,input[type=text]{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+/* subida */
+#drop{border:2px dashed #3a4150;border-radius:var(--r);padding:26px;text-align:center;cursor:pointer;transition:.15s;background:#13161c}
+#drop.over{border-color:var(--acc);background:#1b1a16}
+#drop strong{font-size:15px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.progress{height:10px;background:#0b0d11;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.progress>div{height:100%;width:0;background:linear-gradient(90deg,var(--acc),#f1c27b);transition:width .25s}
+#stage{font-size:12.5px;color:var(--mute);margin-top:6px;min-height:18px}
+/* informe */
+#report{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat .k{font-size:11.5px;color:var(--mute);text-transform:uppercase;letter-spacing:.4px}
+.stat .v{font-size:17px;font-weight:650;margin:2px 0}
+.stat .d{font-size:12px;color:var(--mute)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+/* reproductor */
+#player{z-index:5}
+
+.ab{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ab button{border:0;border-radius:0;padding:9px 16px;background:var(--panel2)}
+.ab button.on[data-m=orig]{background:var(--orig);color:#111;font-weight:650}
+.ab button.on[data-m=proc]{background:var(--acc);color:#1b1307;font-weight:650}
+.ab button.on[data-m=delta]{background:var(--acc2);color:#062027;font-weight:650}
+#wave{width:100%;height:92px;display:block;border-radius:8px;background:#0b0d11;cursor:pointer;margin-top:12px}
+#spec{width:100%;height:150px;display:block;border-radius:8px;background:#0b0d11;margin-top:10px}
+.transport button{min-width:44px;font-size:16px}
+#time{font-variant-numeric:tabular-nums;color:#cfd3dc;min-width:110px}
+.meter{width:150px;height:8px;background:#0b0d11;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.meter>div{height:100%;width:0;background:linear-gradient(90deg,#4caf75 0%,#4caf75 70%,#e7b84a 85%,#e2685b 100%);background-size:150px 100%}
+.small{font-size:12px}
+/* módulos */
+#modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.mod{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.mod.off .ctrl{opacity:.4}
+.mod header{all:unset;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.mod h3{margin:0;font-size:14px;font-weight:650;flex:1}
+.mod .desc{font-size:12px;color:var(--mute);margin:0 0 10px}
+.ctrl{display:grid;grid-template-columns:128px 1fr 74px;align-items:center;gap:10px;margin:7px 0}
+.ctrl label{font-size:12.5px;color:#c9cdd6}
+.ctrl .val{font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--acc)}
+.ctrl.auto .val{color:#cfd3dc}
+input[type=range]{width:100%;accent-color:var(--acc);height:18px}
+.switch{position:relative;width:38px;height:21px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;border-radius:20px;background:#3a4150;transition:.15s;cursor:pointer}
+.switch span:before{content:"";position:absolute;width:15px;height:15px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.15s}
+.switch input:checked+span{background:var(--acc)}
+.switch input:checked+span:before{transform:translateX(17px)}
+.notch{display:grid;grid-template-columns:22px 1fr 1fr 1fr 22px;gap:6px;align-items:center;font-size:12px;margin:4px 0}
+.notch input[type=number]{width:100%;font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 5px}
+.grmeter{font-size:11.5px;color:var(--mute);font-variant-numeric:tabular-nums;min-width:70px;text-align:right}
+#revBtn.on{background:var(--acc2);border-color:var(--acc2);color:#062027;font-weight:650}
+.hidden{display:none!important}
+#saved a{color:var(--acc2);cursor:pointer}
+kbd{background:#252a35;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px}
+@media (max-width:700px){main{padding:14px 16px 40px}#modules{grid-template-columns:1fr}.ctrl{grid-template-columns:100px 1fr 62px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🎸</div>
+  <div><h1>Mejorador de Stems</h1><p>Limpia y restaura stems generados por IA (Suno y similares) para uso profesional</p></div>
+</header>
+<main>
+
+<!-- 1 · Subida y análisis -->
+<section class="card">
+  <h2>1 · Archivo</h2>
+  <div id="drop">
+    <input id="file" type="file" accept=".wav,.mp3,audio/wav,audio/x-wav,audio/mpeg" hidden>
+    <strong>Arrastra aquí tu stem (WAV o MP3)</strong><br><span class="muted">o haz clic para elegirlo</span>
+    <div id="fname" class="small" style="margin-top:8px;color:var(--acc)"></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <label class="small muted">Tipo de instrumento</label>
+    <select id="profile">
+      <option value="guitarra_limpia">Guitarra eléctrica limpia</option>
+      <option value="guitarra_distorsion">Guitarra distorsionada</option>
+      <option value="guitarra_acustica">Guitarra acústica</option>
+      <option value="bajo">Bajo</option>
+      <option value="voz">Voz</option>
+      <option value="bateria">Batería / percusión</option>
+      <option value="teclados">Teclados / sintes</option>
+      <option value="otro">Otro / mezcla</option>
+    </select>
+    <label class="small muted" title="Si lo marcas, al analizar otro stem se conservan tus ajustes manuales (útil para varios stems de la misma canción)"><input type="checkbox" id="keep"> Mantener mis ajustes con el siguiente archivo</label>
+    <div class="grow"></div>
+    <button id="analyze" class="primary" disabled>Analizar y restaurar</button>
+  </div>
+  <div style="margin-top:14px" id="progWrap" class="hidden">
+    <div class="progress"><div id="prog"></div></div>
+    <div id="stage"></div>
+  </div>
+</section>
+
+<!-- 2 · Informe -->
+<section class="card hidden" id="reportCard">
+  <h2>2 · Análisis del archivo</h2>
+  <div id="report"></div>
+  <p class="small muted" style="margin:10px 0 0">Todos los controles de abajo ya tienen los valores calculados para este archivo. Puedes retocarlos y escucharás el cambio al instante. Doble clic en un control lo devuelve a su valor automático.</p>
+</section>
+
+<!-- 3 · Preescucha -->
+<section class="card hidden" id="player">
+  <div class="row">
+    <div class="transport row" style="gap:6px">
+      <button id="play" title="Reproducir / pausa (barra espaciadora)">▶</button>
+      <button id="stop" title="Volver al inicio">■</button>
+      <button id="loop" title="Repetir la zona seleccionada (arrastra sobre la onda para seleccionar)">⟲</button>
+    </div>
+    <span id="time">0:00.0 / 0:00</span>
+    <div class="ab" id="ab">
+      <button data-m="orig" title="Tecla A">ANTES · original</button>
+      <button data-m="proc" class="on" title="Tecla B">DESPUÉS · mejorado</button>
+      <button data-m="delta" title="Solo el ruido y los artefactos que se están quitando">Lo eliminado</button>
+    </div>
+    <label class="small muted" title="Ajusta el volumen del original al del mejorado para comparar de forma justa"><input type="checkbox" id="matchAB" checked> Igualar volumen</label>
+    <div class="grow"></div>
+    <div class="small muted">Salida&nbsp;</div>
+    <div>
+      <div class="meter"><div id="mL"></div></div>
+      <div class="meter" style="margin-top:3px"><div id="mR"></div></div>
+    </div>
+    <span class="grmeter" id="limGr"></span>
+  </div>
+  <canvas id="wave"></canvas>
+  <canvas id="spec"></canvas>
+  <div class="row small muted" style="margin-top:6px">
+    <span><span class="dot" style="background:#5fb6c9"></span>Espectro de lo que oyes</span>
+    <span><span class="dot" style="background:#e2a54a"></span>Curva de ecualización total</span>
+    <span><span class="dot" style="background:#6cc58a"></span><span id="slopeTxt">Pendiente (aparece al reproducir)</span></span>
+    <span class="muted">- - - pendiente de referencia</span>
+    <div class="grow"></div>
+    <span><kbd>Espacio</kbd> reproducir · <kbd>A</kbd>/<kbd>B</kbd> antes/después · arrastra sobre la onda para hacer un bucle</span>
+  </div>
+</section>
+
+<!-- Espectrograma -->
+<section class="card hidden" id="specCard">
+  <h2>Espectrograma y reparación manual</h2>
+  <div class="row">
+    <div class="ab" id="specTabs">
+      <button data-v="antes">Antes</button>
+      <button data-v="despues" class="on">Después</button>
+      <button data-v="mapa">Mapa de reparaciones</button>
+    </div>
+    <span class="small muted" id="specLegend"></span>
+    <div class="grow"></div>
+    <span class="small muted">Arrastra sobre el espectrograma para seleccionar una zona</span>
+  </div>
+  <div style="position:relative;margin-top:10px">
+    <canvas id="sgram" style="width:100%;height:260px;display:block;border-radius:8px;background:#000;cursor:crosshair"></canvas>
+    <div id="sgFreq" class="small" style="position:absolute;left:6px;top:4px;color:#fff9;pointer-events:none;line-height:1.1"></div>
+  </div>
+  <div class="row" style="margin-top:10px" id="selBar">
+    <span class="small" id="selInfo" style="color:var(--acc2)">Sin selección</span>
+    <div class="grow"></div>
+    <button id="selPlay" disabled>▶ Escuchar zona</button>
+    <select id="selGain" disabled><option value="-6">−6 dB</option><option value="-12" selected>−12 dB</option><option value="-20">−20 dB</option><option value="-40">Silenciar</option></select>
+    <button id="selAtt" disabled>Atenuar zona</button>
+    <button id="selRep" disabled title="Rehace la zona interpolando lo que suena justo antes y después (como Spectral Repair de RX)">Reparar zona</button>
+    <button id="selUndo" disabled>Deshacer</button>
+  </div>
+  <div class="small muted" id="editStatus" style="margin-top:6px"></div>
+</section>
+
+<!-- iZotope RX -->
+<section class="card hidden" id="rxCard">
+  <h2>iZotope RX <span id="rxName" class="muted" style="text-transform:none;font-weight:400"></span></h2>
+  <div class="row">
+    <button id="rxSend" class="primary">1 · Abrir el original en RX</button>
+    <span class="small muted">2 · Repara en RX siguiendo los pasos · 3 · Guarda con <kbd>⌘</kbd><kbd>S</kbd> y vuelve aquí: se importa solo</span>
+    <div class="grow"></div>
+    <button id="rxFinal" title="Renderiza el resultado actual y lo abre en RX para un último retoque">Abrir el resultado final en RX</button>
+  </div>
+  <div id="rxStatus" class="small" style="margin-top:10px;color:var(--acc2)"></div>
+  <details open style="margin-top:12px">
+    <summary style="cursor:pointer;color:#cfd3dc">Qué hacer en RX (pasos recomendados para stems de IA muy comprimidos)</summary>
+    <ol class="small" style="line-height:1.65;color:#c9cdd6;padding-left:20px;margin:8px 0 0">
+      <li><b>Repair Assistant</b> (botón arriba a la izquierda) → tipo <b>Music</b> → <i>Analyze</i>. Úsalo como orientación: aplica solo lo que mejore y con intensidad baja.</li>
+      <li><b>De-clip</b>, solo si la app indica picos recortados: <i>Threshold</i> automático (<i>Compute</i>), <i>Quality</i> High.</li>
+      <li><b>Spectral Recovery</b> (en RX Advanced): recupera los agudos que cortó la compresión. Ajusta <i>Bandwidth</i> desde el corte que indica la app (por ejemplo 16 kHz) y deja <i>Amount</i> moderado. Si lo usas, baja «Síntesis de agudos» en la app para no duplicar.</li>
+      <li><b>Guitar De-noise</b> (guitarras): <i>Amp hiss</i> suave (4–8 dB) para el siseo. Si la guitarra tiene ruido de dedos o chirridos, ajusta <i>Pick/Squeak</i> con cuidado.</li>
+      <li><b>Spectral Repair</b> para los zumbidos metálicos y los «pitidos» de la IA: en el espectrograma de RX, selecciónalos con la herramienta de rectángulo o la varita (<i>Magic Wand</i> y luego <i>Select similar</i>) y aplica <i>Attenuate</i> (modo <i>Multi-resolution</i>). Para un hueco o un golpe digital corto usa <i>Replace</i> o <i>Pattern</i>: <i>Pattern</i> copia el material de otra parte parecida de la canción.</li>
+      <li><b>Deconstruct</b>: baja un poco <i>Noise</i> (−3 a −6 dB) para quitar el «hash» digital que queda bajo las notas, sin tocar <i>Tonal</i>.</li>
+      <li><b>Spectral De-noise</b> solo si queda siseo: selecciona un trozo de ruido sin música, pulsa <i>Learn</i> y aplica una reducción suave (6–10 dB, <i>Algorithm</i> C o D).</li>
+      <li>Guarda con <b>File → Save (⌘S)</b> sobre el mismo archivo, en WAV. La app lo detecta, lo importa, lo vuelve a analizar y <b>mantiene tus ajustes</b>. Después termina aquí con la EQ, la dinámica, el carácter de micro, la reverb y la descarga.</li>
+    </ol>
+    <p class="small muted" style="margin:8px 0 0">Consejo: no apliques en RX lo que la app ya hace aquí (reducción de ruido, EQ, compresión). Usa RX para lo que necesita el «pincel» del espectrograma: zumbidos, pitidos, clics y huecos concretos. Los archivos de intercambio se guardan en <span id="rxFolder"></span>.</p>
+  </details>
+</section>
+
+<!-- 4 · Controles -->
+<section class="hidden" id="ctrlWrap">
+  <div class="row" style="margin-bottom:12px">
+    <h2 style="font-size:14px;margin:0;text-transform:uppercase;letter-spacing:.3px;color:#cfd3dc">3 · Controles manuales (tiempo real)</h2>
+    <div class="grow"></div>
+    <select id="presetSel"><option value="">Presets guardados…</option></select>
+    <button id="presetSave">Guardar preset</button>
+    <button id="resetAll">Volver a los valores automáticos</button>
+  </div>
+  <div id="modules"></div>
+</section>
+
+<!-- 5 · Exportar -->
+<section class="card hidden" id="exportCard">
+  <h2>4 · Descargar</h2>
+  <div class="row">
+    <label class="small muted">Nombre</label>
+    <input type="text" id="outName" class="grow" style="min-width:220px">
+    <select id="fmt">
+      <option value="wav24">WAV 24 bits (recomendado para stems)</option>
+      <option value="wav32">WAV 32 bits coma flotante</option>
+      <option value="mp3">MP3 320 kbps</option>
+    </select>
+    <button id="export" class="primary">Descargar… (elegir carpeta)</button>
+  </div>
+  <div class="small muted" style="margin-top:8px">Se exporta exactamente lo que escuchas en «Después», con la misma duración y frecuencia de muestreo que el original, para que encaje al milímetro con el resto de stems.</div>
+  <div style="margin-top:12px" id="expWrap" class="hidden">
+    <div class="progress"><div id="expProg"></div></div>
+    <div id="expStage" class="small muted" style="margin-top:6px"></div>
+  </div>
+  <div id="saved" class="small" style="margin-top:8px"></div>
+</section>
+
+</main>
+
+<script>
+// =============================================================================
+// Definición de los controles
+// =============================================================================
+const MODULES = [
+  { id: 'clean', title: 'Limpieza de ruido y artefactos IA', desc: 'Reducción espectral que respeta los armónicos del instrumento y elimina el «chisporroteo» y el sonido «acuoso» típico de la IA en los agudos.',
+    ctrls: [
+      { k: 'clean.nr', label: 'Reducción de ruido', min: 0, max: 100, step: 1, unit: '%' },
+      { k: 'clean.art', label: 'Artefactos IA / cuantización', min: 0, max: 100, step: 1, unit: '%', hint: 'Chisporroteo, zumbidos metálicos, líneas finas, manchas, estallidos y textura en bloques' },
+    ] },
+  { id: 'restore', title: 'Restauración espectral (compresión / IA)', desc: 'Clona sobre las partes dañadas el sonido de las partes buenas de la canción donde se toca lo mismo, rellena los huecos y el «embudo» de agudos sin adelantar energía a los ataques, y sintetiza el aire perdido con armónicos generados en el tiempo (sin líneas ni grano). Las líneas finas, manchas y bloques de cuantización se eliminan con «Artefactos».',
+    ctrls: [
+      { k: 'rep.fill', label: 'Reconstruir partes dañadas', min: 0, max: 100, step: 1, unit: '%' },
+      { k: 'rep.hf', label: 'Síntesis de agudos (aire)', min: 0, max: 100, step: 1, unit: '%', hint: 'Si se exagera puede sonar algo sintético' },
+      { k: 'rep.bal', label: 'Equilibrio adaptativo', min: 0, max: 100, step: 1, unit: '%', hint: 'Baja los agudos solo en los tramos mucho más estridentes que las partes sanas de la canción (cambio lento, no toca los ataques)' },
+    ] },
+  { id: 'deh', title: 'EQ dinámica antiasperezas', toggle: 'deh.on', desc: 'Doma los picos estridentes y el siseo digital de los armónicos solo cuando aparecen, sin apagar la guitarra el resto del tiempo.',
+    ctrls: [
+      { k: 'deh.depth', label: 'Reducción máx.', min: 0, max: 18, step: 0.5, unit: 'dB' },
+      { k: 'deh.sens', label: 'Umbral (más bajo = actúa antes)', min: 0, max: 12, step: 0.5, unit: 'dB' },
+      { k: 'deh.f1', label: 'Banda aspereza', min: 1000, max: 8000, step: 10, unit: 'Hz' },
+      { k: 'deh.f2', label: 'Banda siseo', min: 3000, max: 16000, step: 50, unit: 'Hz' },
+    ], meter: 'dehGr' },
+  { id: 'gate', title: 'Puerta de ruido suave', toggle: 'gate.on', desc: 'Expansor suave: baja el siseo entre notas sin cortar las colas ni los armónicos.',
+    ctrls: [
+      { k: 'gate.thr', label: 'Umbral', min: -90, max: -20, step: 1, unit: 'dB' },
+      { k: 'gate.ratio', label: 'Ratio', min: 1, max: 6, step: 0.1, unit: ':1' },
+      { k: 'gate.range', label: 'Reducción máx.', min: 0, max: 40, step: 1, unit: 'dB' },
+      { k: 'gate.att', label: 'Ataque', min: 0.1, max: 20, step: 0.1, unit: 'ms' },
+      { k: 'gate.hold', label: 'Mantener', min: 0, max: 200, step: 1, unit: 'ms' },
+      { k: 'gate.rel', label: 'Release', min: 20, max: 1000, step: 5, unit: 'ms' },
+    ], meter: 'gateGr' },
+  { id: 'eq', title: 'Ecualización correctiva', toggle: 'eq.on', desc: 'Calculada a partir del espectro del archivo. Incluye la eliminación de resonancias detectadas.',
+    ctrls: [
+      { k: 'eq.tilt', label: 'Inclinación tonal', min: -6, max: 6, step: 0.1, unit: 'dB', hint: '− más cálido · + más brillante' },
+      { k: 'hpf.freq', label: 'Paso alto', min: 20, max: 300, step: 1, unit: 'Hz' },
+      { k: 'hpf.slope', label: 'Pendiente', type: 'select', opts: [[12, '12 dB/oct'], [24, '24 dB/oct']] },
+      { k: 'eq.low_g', label: 'Graves', min: -12, max: 12, step: 0.1, unit: 'dB', fk: 'eq.low_f' },
+      { k: 'eq.low_f', label: '  frecuencia', min: 50, max: 250, step: 1, unit: 'Hz', sub: true },
+      { k: 'eq.mud_g', label: 'Barro', min: -12, max: 12, step: 0.1, unit: 'dB' },
+      { k: 'eq.mud_f', label: '  frecuencia', min: 150, max: 600, step: 1, unit: 'Hz', sub: true },
+      { k: 'eq.mid_g', label: 'Medios', min: -12, max: 12, step: 0.1, unit: 'dB' },
+      { k: 'eq.mid_f', label: '  frecuencia', min: 500, max: 2000, step: 10, unit: 'Hz', sub: true },
+      { k: 'eq.pres_g', label: 'Presencia', min: -12, max: 12, step: 0.1, unit: 'dB' },
+      { k: 'eq.pres_f', label: '  frecuencia', min: 1500, max: 5000, step: 10, unit: 'Hz', sub: true },
+      { k: 'eq.harsh_g', label: 'Aspereza', min: -12, max: 12, step: 0.1, unit: 'dB' },
+      { k: 'eq.harsh_f', label: '  frecuencia', min: 1500, max: 9000, step: 10, unit: 'Hz', sub: true },
+      { k: 'eq.air_g', label: 'Aire / brillo', min: -12, max: 12, step: 0.1, unit: 'dB' },
+      { k: 'eq.air_f', label: '  frecuencia', min: 6000, max: 16000, step: 100, unit: 'Hz', sub: true },
+      { k: 'eq.lpf', label: 'Paso bajo', min: 5000, max: 20000, step: 100, unit: 'Hz' },
+    ], notches: true },
+  { id: 'dyn', title: 'Restaurar dinámica y expresividad', toggle: 'dyn.on', desc: 'Devuelve el ataque de la púa y el rango dinámico que la IA aplastó (descompresión).',
+    ctrls: [
+      { k: 'dyn.crisp', label: 'Nitidez de ataque', min: 0, max: 100, step: 1, unit: '%', hint: 'Devuelve el chasquido de la púa (solo la parte aguda del ataque, sin retraso)' },
+      { k: 'dyn.attack', label: 'Ataque (púa)', min: -100, max: 100, step: 1, unit: '%' },
+      { k: 'dyn.sustain', label: 'Sustain / cola', min: -100, max: 100, step: 1, unit: '%' },
+      { k: 'dyn.expand', label: 'Descompresión', min: 0, max: 100, step: 1, unit: '%' },
+    ] },
+  { id: 'comp', title: 'Compresor (ataque medio, release natural)', toggle: 'comp.on', desc: 'Control suave de picos que deja pasar los transitorios.',
+    ctrls: [
+      { k: 'comp.thr', label: 'Umbral', min: -50, max: 0, step: 0.5, unit: 'dB' },
+      { k: 'comp.ratio', label: 'Ratio', min: 1, max: 10, step: 0.1, unit: ':1' },
+      { k: 'comp.att', label: 'Ataque', min: 1, max: 100, step: 1, unit: 'ms' },
+      { k: 'comp.rel', label: 'Release', min: 20, max: 1000, step: 5, unit: 'ms' },
+      { k: 'comp.knee', label: 'Rodilla', min: 0, max: 12, step: 0.5, unit: 'dB' },
+      { k: 'comp.makeup', label: 'Ganancia', min: 0, max: 12, step: 0.1, unit: 'dB' },
+    ], meter: 'compGr' },
+  { id: 'mic', title: 'Carácter de micro de estudio', toggle: 'mic.on', desc: 'Respuesta de condensador de gran diafragma: calidez cercana, presencia y aire. El excitador recupera definición y la saturación añade calidez de previo a válvulas.',
+    ctrls: [
+      { k: 'mic.amount', label: 'Carácter micro', min: 0, max: 100, step: 1, unit: '%' },
+      { k: 'mic.excite', label: 'Definición (excitador)', min: 0, max: 100, step: 1, unit: '%' },
+      { k: 'mic.sat', label: 'Calidez (válvula)', min: 0, max: 100, step: 1, unit: '%' },
+    ] },
+  { id: 'rev', title: 'Reverb', toggle: 'rev.on', revBtn: true, desc: 'Espacio natural opcional. Apágala para stems secos.',
+    ctrls: [
+      { k: 'rev.type', label: 'Tipo', type: 'select', opts: [['estudio', 'Sala de estudio'], ['camara', 'Cámara'], ['sala', 'Sala de conciertos'], ['placa', 'Placa']] },
+      { k: 'rev.mix', label: 'Cantidad', min: 0, max: 100, step: 1, unit: '%' },
+      { k: 'rev.size', label: 'Duración', min: 0.2, max: 6, step: 0.05, unit: 's' },
+      { k: 'rev.predelay', label: 'Pre-delay', min: 0, max: 120, step: 1, unit: 'ms' },
+      { k: 'rev.tone', label: 'Tono (oscuro→brillante)', min: 0, max: 100, step: 1, unit: '%' },
+    ] },
+  { id: 'phase', title: 'Fase y estéreo', desc: 'Mantiene el estéreo coherente y sin cancelaciones, sobre todo en graves. La correlación debe estar en positivo (+1 = mono, 0 = muy abierto, negativo = cancelaciones).',
+    ctrls: [
+      { k: 'stereo.flip', label: 'Invertir polaridad del canal derecho', type: 'check' },
+      { k: 'stereo.align', label: 'Alinear canales', min: -96, max: 96, step: 1, unit: 'smp' },
+      { k: 'stereo.monobass', label: 'Graves en mono', type: 'check' },
+      { k: 'stereo.monofreq', label: '  por debajo de', min: 40, max: 300, step: 1, unit: 'Hz', sub: true },
+      { k: 'stereo.width', label: 'Anchura estéreo', min: 0, max: 200, step: 1, unit: '%' },
+    ], corr: true },
+  { id: 'out', title: 'Salida', desc: 'El limitador evita que nada pase del techo. Al exportar puedes normalizar los picos a −1 dBTP (pico verdadero, estándar de mezcla) o dejar el mismo volumen que el original para que la mezcla de stems de una canción no cambie.',
+    ctrls: [
+      { k: 'out.gain', label: 'Ganancia salida', min: -12, max: 12, step: 0.1, unit: 'dB' },
+      { k: 'out.ceil', label: 'Techo limitador', min: -6, max: 0, step: 0.1, unit: 'dB' },
+      { k: 'out.level', label: 'Nivel al exportar', type: 'select', opts: [['tp', 'Normalizar picos a −1 dBTP (true peak)'], ['match', 'Igual que el original (stems de una misma canción)'], ['none', 'Sin cambios']] },
+    ] },
+];
+const REV_TYPES = { estudio: { size: 0.7, predelay: 6, tone: 55 }, camara: { size: 1.2, predelay: 12, tone: 60 }, sala: { size: 2.4, predelay: 24, tone: 45 }, placa: { size: 1.6, predelay: 0, tone: 80 } };
+const KEYS = ['x', 'n', 'a', 'na', 'r', 'h', 'e'];
+
+// =============================================================================
+// Estado
+// =============================================================================
+let jobId = null, fileName = '', P = null, AUTO = null, ANALYSIS = null;
+let ctx = null, G = null, B = null, IR = null, irKey = '';
+let playing = false, startT = 0, startOff = 0, pos = 0, loopOn = false, region = null, mode = 'proc';
+let pwrP = 0, pwrO = 0, matchG = 1;
+const $ = (id) => document.getElementById(id);
+
+// =============================================================================
+// Subida y análisis
+// =============================================================================
+const drop = $('drop'), fileIn = $('file');
+drop.onclick = () => fileIn.click();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) pickFile(e.dataTransfer.files[0]); };
+fileIn.onchange = () => fileIn.files[0] && pickFile(fileIn.files[0]);
+
+function pickFile(f) {
+  if (!/\.(wav|mp3)$/i.test(f.name)) { alert('Solo se admiten archivos WAV o MP3.'); return; }
+  pendingFile = f; jobId = null;
+  $('fname').textContent = `${f.name} · ${(f.size / 1048576).toFixed(1)} MB`;
+  $('analyze').disabled = false;
+  const g = f.name.toLowerCase();
+  if (/bass|bajo/.test(g)) $('profile').value = 'bajo';
+  else if (/vocal|voz|voice/.test(g)) $('profile').value = 'voz';
+  else if (/drum|bater|perc/.test(g)) $('profile').value = 'bateria';
+  else if (/acoust|acust/.test(g)) $('profile').value = 'guitarra_acustica';
+  else if (/key|piano|synth|sinte/.test(g)) $('profile').value = 'teclados';
+}
+let pendingFile = null;
+
+async function fetchBuffers(onEach) {
+  const bufs = {}; let done = 0;
+  await Promise.all(KEYS.map(async (k) => {
+    const ab = await (await fetch(`/api/audio/${jobId}/${k}?t=${Date.now()}`)).arrayBuffer();
+    bufs[k] = await ctx.decodeAudioData(ab);
+    done++; onEach && onEach(done);
+  }));
+  return bufs;
+}
+function setProg(p, txt) { $('progWrap').classList.remove('hidden'); $('prog').style.width = p + '%'; $('stage').textContent = txt; }
+
+$('analyze').onclick = () => runAnalysis();
+async function runAnalysis() {
+  if (!pendingFile && !jobId) return;
+  $('analyze').disabled = true;
+  try {
+    if (!jobId) {
+      jobId = await uploadFile(pendingFile);
+      fileName = pendingFile.name;
+    }
+    setProg(0, 'Empezando el análisis…');
+    await fetch(`/api/analyze/${jobId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile: $('profile').value }) });
+    const res = await pollJob();
+    await loadResult(res);
+  } catch (e) {
+    console.error(e); setProg(0, '❌ ' + (e.message || e));
+  } finally { $('analyze').disabled = false; }
+}
+
+function uploadFile(f) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest(), fd = new FormData();
+    fd.append('file', f);
+    xhr.upload.onprogress = (e) => e.lengthComputable && setProg(e.loaded / e.total * 100, `Subiendo archivo… ${Math.round(e.loaded / e.total * 100)}%`);
+    xhr.onload = () => { try { const r = JSON.parse(xhr.responseText); r.id ? resolve(r.id) : reject(new Error(r.error)); } catch (e) { reject(e); } };
+    xhr.onerror = () => reject(new Error('No se pudo subir el archivo'));
+    xhr.open('POST', '/api/upload'); xhr.send(fd);
+  });
+}
+
+async function pollJob() {
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 300));
+    const j = await (await fetch(`/api/job/${jobId}`)).json();
+    if (j.error) throw new Error(j.error);
+    setProg(Math.min(j.progress, 99) * 0.9, j.stage);
+    if (j.done) return j.result;
+  }
+}
+
+async function loadResult(res) {
+  ANALYSIS = res.analysis;
+  const keep = $('keep').checked && P;
+  AUTO = structuredClone(res.params);
+  if (keep) { // los ajustes propios de cada archivo (resonancias y fase) se recalculan siempre
+    P = { ...P, notches: AUTO.notches, 'stereo.flip': AUTO['stereo.flip'], 'stereo.align': AUTO['stereo.align'], 'eq.slope_target': AUTO['eq.slope_target'] };
+  } else P = structuredClone(AUTO);
+  setProg(91, 'Preparando la preescucha…');
+  const sr = ANALYSIS.sr;
+  stopPlay();
+  if (!ctx || ctx.sampleRate !== sr) {
+    if (ctx) ctx.close();
+    ctx = new AudioContext({ sampleRate: sr, latencyHint: 'playback' });
+    G = null;
+  }
+  B = await fetchBuffers((d) => setProg(91 + d * 1.4, 'Preparando la preescucha…'));
+  if (G) G.disconnect();
+  G = await createGraph(ctx, B, false);
+  await ensureIR(true);
+  G.apply(P);
+  pos = 0; region = null; loopOn = false; $('loop').classList.remove('on');
+  setProg(100, `✅ Listo · ${fmtTime(ANALYSIS.duration)} · ${ANALYSIS.sr} Hz · ${ANALYSIS.channels === 2 ? 'estéreo' : 'mono'}. Pulsa ▶ para escuchar.`);
+  renderReport(); buildModules();
+  ['reportCard', 'player', 'specCard', 'rxCard', 'ctrlWrap', 'exportCard'].forEach((id) => $(id).classList.remove('hidden'));
+  prepWave(); sel = null; edits = 0; updateSelBar(); loadSpecImages();
+  $('outName').value = fileName.replace(/\.[^.]+$/, '') + '_mejorado';
+  $('saved').textContent = '';
+}
+
+// =============================================================================
+// Informe
+// =============================================================================
+function renderReport() {
+  const a = ANALYSIS, cards = [];
+  const lvl = (v, t) => (v <= t[0] ? ['var(--ok)', t[2]] : v <= t[1] ? ['var(--warn)', t[3]] : ['var(--bad)', t[4]]);
+  let [c, d] = lvl(a.noise_db, [-75, -60, 'Muy bajo', 'Audible, se reduce', 'Alto, se reduce']);
+  cards.push(['Ruido de fondo', `${a.noise_db} dBFS`, d, c]);
+  [c, d] = lvl(a.art_db, [0.5, 1.5, 'Leves', 'Moderados', 'Fuertes']);
+  cards.push(['Artefactos IA en agudos', `${a.art_db} dB`, d + ' · energía inestable eliminable', c]);
+  const sq = Math.min(a.dyn_range, a.plr);
+  [c, d] = sq < 6 ? ['var(--bad)', 'Muy comprimido, se restaura'] : sq < 10 ? ['var(--warn)', 'Comprimido, se restaura'] : ['var(--ok)', 'Natural'];
+  cards.push(['Dinámica', `${a.dyn_range} dB`, `${d} · pico/sonoridad ${a.plr} dB`, c]);
+  const bw = a.bandwidth / 1000;
+  cards.push(['Ancho de banda', `${bw.toFixed(1)} kHz`, bw < 17 ? 'Corte típico de IA / MP3' : 'Completo', bw < 17 ? 'var(--warn)' : 'var(--ok)']);
+  cards.push(['Resonancias', a.resonances.length ? a.resonances.map((r) => fmtHz(r.f)).join(', ') : 'Ninguna', a.resonances.length ? 'Se atenúan en la EQ (puedes desactivarlas)' : 'Sin picos persistentes', a.resonances.length ? 'var(--warn)' : 'var(--ok)']);
+  {
+    const cut = (a.hf_cut || a.bandwidth) / 1000, bad = a.holes_pct > 1.5 || a.instab_pct > 20 || cut < 15;
+    const parts = [`corte a ${cut.toFixed(1)} kHz`, `huecos ${a.holes_pct}%`, `inestabilidad ${a.instab_pct}%`];
+    if (a.metal_tones && a.metal_tones.length) parts.push(`zumbidos metálicos en ${a.metal_tones.map(fmtHz).join(', ')}`);
+    cards.push(['Degradación por compresión', bad ? 'Fuerte' : a.holes_pct > 0.3 || cut < 17 ? 'Moderada' : 'Leve', parts.join(' · '), bad ? 'var(--bad)' : cut < 17 ? 'var(--warn)' : 'var(--ok)']);
+    cards.push(['Reconstrucción', `${a.clone_pct ?? 0}% clonado`, `de partes buenas de la canción · ${a.song_pct}% con pareja musical encontrada`, 'var(--acc2)']);
+    if (a.balance_max_db != null && a.balance_max_db < -1) cards.push(['Tramos estridentes', `hasta ${a.balance_max_db} dB`, 'partes de la canción mucho más chillonas que las sanas · se equilibran de forma gradual', 'var(--warn)']);
+    if (a.hf_beyond_pct != null && a.hf_beyond_pct >= 30) cards.push(['Agudos reales', `${a.hf_beyond_pct}% del tiempo`, 'hay brillo real por encima del corte medio: no se sintetizan agudos', 'var(--ok)']);
+    if (a.q_lines != null) {
+      const qb = a.q_lines > 2 || a.q_grain > 25;
+      cards.push(['Cuantización', qb ? 'Fuerte' : a.q_lines > 0.5 ? 'Moderada' : 'Leve', `líneas finas ${a.q_lines}% · manchas ${a.q_spots}% · estallidos ${a.q_bursts} · textura en bloques ${a.q_grain}% → se limpian`, qb ? 'var(--bad)' : a.q_lines > 0.5 ? 'var(--warn)' : 'var(--ok)']);
+    }
+    if (a.buildup && a.buildup.length) {
+      const [bf, be] = a.buildup.find(([f]) => f >= 2000) || [3200, 0];
+      const on = be > 4.5;
+      cards.push(['Zona de estridencia (2-8 kHz)', on ? `+${be} dB en ${fmtHz(bf)}` : 'Equilibrada', on ? 'acumulación de energía sobre la forma natural del instrumento · se corrige con EQ fija suave + EQ dinámica' : 'sin acumulación anómala', be > 8 ? 'var(--bad)' : on ? 'var(--warn)' : 'var(--ok)']);
+    }
+  }
+  cards.push(['Picos recortados', a.clips_fixed ? `${a.clips_fixed} reparados` : 'Ninguno', `Pico ${a.peak_db} dBFS`, a.clips_fixed ? 'var(--warn)' : 'var(--ok)']);
+  const st = AUTO['eq.slope_target'], dv = a.slope - st;
+  cards.push(['Balance tonal', `${a.slope.toFixed(1)} dB/oct`, `Referencia equilibrada ${st} dB/oct · ${Math.abs(dv) < 1 ? 'equilibrado' : dv > 0 ? 'demasiado brillante, se calienta' : 'demasiado oscuro, se abre'}`, Math.abs(dv) < 1 ? 'var(--ok)' : 'var(--warn)']);
+  if (a.channels === 2) {
+    const probs = [];
+    if (a.polarity < 0) probs.push('polaridad invertida (corregida)');
+    if (a.lag) probs.push(`desfase ${Math.abs(a.lag_ms)} ms (alineado)`);
+    if (a.corr_low < 0.6) probs.push('graves con cancelaciones (graves en mono)');
+    const bad = a.polarity < 0 || a.corr_low < 0.3 || a.corr < 0;
+    cards.push(['Fase estéreo', `general ${a.corr} · graves ${a.corr_low}`, probs.length ? probs.join(' · ') : 'Coherente, sin cancelaciones', bad ? 'var(--bad)' : probs.length ? 'var(--warn)' : 'var(--ok)']);
+  } else cards.push(['Fase estéreo', 'Mono', 'Sin riesgo de cancelaciones', 'var(--ok)']);
+  $('report').innerHTML = cards.map(([k, v, d, c]) => `<div class="stat"><div class="k"><span class="dot" style="background:${c}"></span>${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+}
+
+// =============================================================================
+// Controles
+// =============================================================================
+const fmtHz = (f) => (f >= 1000 ? (f / 1000).toFixed(f >= 10000 ? 1 : 2).replace(/\.?0+$/, '') + ' kHz' : Math.round(f) + ' Hz');
+function fmtVal(c, v) {
+  if (c.unit === 'Hz') return fmtHz(v);
+  if (c.unit === ':1') return (+v).toFixed(1) + ':1';
+  if (c.unit === 'dB') return (v > 0 && /_g|makeup|gain/.test(c.k) ? '+' : '') + (+v).toFixed(Math.abs(v) < 10 && c.step < 1 ? 1 : 0) + ' dB';
+  if (c.unit === 'smp') { const ms = v / (ANALYSIS ? ANALYSIS.sr : 48000) * 1000; return (v === 0 ? '0' : (v > 0 ? 'R→ ' : 'L→ ') + Math.abs(ms).toFixed(2)) + ' ms'; }
+  if (c.unit === 's') return (+v).toFixed(2) + ' s';
+  if (c.unit === 'ms') return (+v).toFixed(v < 10 ? 1 : 0) + ' ms';
+  return Math.round(v) + (c.unit || '');
+}
+function setP(k, v) {
+  P[k] = v;
+  if (k === 'rev.type' && REV_TYPES[v]) { const t = REV_TYPES[v]; P['rev.size'] = t.size; P['rev.predelay'] = t.predelay; P['rev.tone'] = t.tone; buildModules(); }
+  if (G) { G.apply(P); if (k.startsWith('rev.')) ensureIR(); }
+}
+
+function buildModules() {
+  const root = $('modules'); root.innerHTML = '';
+  for (const m of MODULES) {
+    const el = document.createElement('div'); el.className = 'mod'; el.id = 'mod_' + m.id;
+    const on = m.toggle ? !!P[m.toggle] : true;
+    if (!on) el.classList.add('off');
+    let head = `<header><h3>${m.title}</h3>`;
+    if (m.meter) head += `<span class="grmeter" id="${m.meter}"></span>`;
+    if (m.revBtn) head += `<button id="revBtn" class="${on ? 'on' : ''}">${on ? 'Reverb ON' : 'Reverb OFF'}</button>`;
+    else if (m.toggle) head += `<label class="switch" title="Activar / desactivar"><input type="checkbox" data-t="${m.toggle}" ${on ? 'checked' : ''}><span></span></label>`;
+    head += '</header>';
+    el.innerHTML = head + `<p class="desc">${m.desc}</p>`;
+    for (const c of m.ctrls) el.appendChild(makeCtrl(c));
+    if (m.notches) el.appendChild(makeNotches());
+    if (m.corr) { const d = document.createElement('div'); d.innerHTML = corrHTML(); el.appendChild(d); }
+    root.appendChild(el);
+    const t = el.querySelector('input[data-t]');
+    if (t) t.onchange = () => { setP(m.toggle, t.checked); el.classList.toggle('off', !t.checked); };
+    const rb = el.querySelector('#revBtn');
+    if (rb) rb.onclick = () => { const v = !P['rev.on']; setP('rev.on', v); rb.classList.toggle('on', v); rb.textContent = v ? 'Reverb ON' : 'Reverb OFF'; el.classList.toggle('off', !v); };
+  }
+}
+
+function makeCtrl(c) {
+  const row = document.createElement('div'); row.className = 'ctrl';
+  const isAuto = () => JSON.stringify(P[c.k]) === JSON.stringify(AUTO[c.k]);
+  if (c.type === 'select') {
+    row.innerHTML = `<label>${c.label}</label><select>${c.opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select><span></span>`;
+    const s = row.querySelector('select'); s.value = String(P[c.k]);
+    s.onchange = () => setP(c.k, isNaN(+s.value) ? s.value : +s.value);
+  } else if (c.type === 'check') {
+    row.innerHTML = `<label style="grid-column:1/3">${c.label}</label><label class="switch"><input type="checkbox" ${P[c.k] ? 'checked' : ''}><span></span></label>`;
+    const s = row.querySelector('input'); s.onchange = () => setP(c.k, s.checked);
+  } else {
+    row.innerHTML = `<label title="Doble clic: valor automático">${c.label}</label><input type="range" min="${c.min}" max="${c.max}" step="${c.step}"><span class="val"></span>`;
+    const r = row.querySelector('input'), val = row.querySelector('.val');
+    // frecuencias en escala logarítmica para que el control sea cómodo
+    const log = c.unit === 'Hz';
+    if (log) { r.min = 0; r.max = 1000; r.step = 1; }
+    const toPos = (v) => (log ? Math.round(1000 * Math.log(v / c.min) / Math.log(c.max / c.min)) : v);
+    const fromPos = (x) => { if (!log) return +x; const v = c.min * Math.pow(c.max / c.min, x / 1000); return Math.round(v / c.step) * c.step; };
+    const show = () => { val.textContent = fmtVal(c, P[c.k]); row.classList.toggle('auto', isAuto()); };
+    r.value = toPos(P[c.k]); show();
+    r.oninput = () => { setP(c.k, fromPos(r.value)); show(); };
+    const reset = () => { setP(c.k, AUTO[c.k]); r.value = toPos(P[c.k]); show(); };
+    r.ondblclick = reset; row.querySelector('label').ondblclick = reset;
+  }
+  if (c.sub) row.querySelector('label').style.color = 'var(--mute)';
+  if (c.hint) row.querySelector('label').title = c.hint + ' · doble clic: valor automático';
+  return row;
+}
+
+function makeNotches() {
+  const box = document.createElement('div');
+  box.innerHTML = `<div class="small" style="margin:12px 0 4px;color:#c9cdd6">Resonancias (filtros de corte estrecho)</div>
+    <div class="notch small muted"><span></span><span>Frecuencia (Hz)</span><span>Ganancia (dB)</span><span>Q</span><span></span></div><div id="nlist"></div>
+    <button id="nadd" class="small" style="margin-top:6px;padding:5px 10px">+ Añadir filtro</button>`;
+  const list = box.querySelector('#nlist');
+  const draw = () => {
+    list.innerHTML = '';
+    P.notches.forEach((n, i) => {
+      const r = document.createElement('div'); r.className = 'notch';
+      r.innerHTML = `<input type="checkbox" ${n.on ? 'checked' : ''} title="Activar"><input type="number" min="40" max="18000" step="1" value="${n.f}"><input type="number" min="-18" max="6" step="0.5" value="${n.g}"><input type="number" min="0.5" max="20" step="0.1" value="${n.q}"><button title="Quitar" style="padding:0 6px">×</button>`;
+      const [on, f, g, q] = r.querySelectorAll('input');
+      const upd = () => { n.on = on.checked; n.f = +f.value; n.g = +g.value; n.q = +q.value; G && G.apply(P); };
+      on.onchange = f.oninput = g.oninput = q.oninput = upd;
+      r.querySelector('button').onclick = () => { P.notches.splice(i, 1); draw(); G && G.apply(P); };
+      list.appendChild(r);
+    });
+    if (!P.notches.length) list.innerHTML = '<div class="small muted">No se han detectado resonancias persistentes.</div>';
+    box.querySelector('#nadd').disabled = P.notches.length >= 8;
+  };
+  box.querySelector('#nadd').onclick = () => { P.notches.push({ f: 1000, g: -3, q: 6, on: true }); draw(); G && G.apply(P); };
+  draw();
+  return box;
+}
+
+function corrHTML() {
+  const bar = (id, t) => `<div class="small" style="display:grid;grid-template-columns:128px 1fr 54px;gap:10px;align-items:center;margin:6px 0"><span class="muted">${t}</span>
+    <div style="position:relative;height:10px;background:#0b0d11;border:1px solid var(--line);border-radius:5px;overflow:hidden">
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#555"></div><div id="${id}" style="position:absolute;top:0;bottom:0;width:6px;margin-left:-3px;left:50%;border-radius:3px;background:var(--ok)"></div></div>
+    <span id="${id}v" style="text-align:right;font-variant-numeric:tabular-nums">–</span></div>`;
+  return `<div class="small" style="margin:12px 0 2px;color:#c9cdd6">Correlación de fase en tiempo real <span class="muted">(−1 … 0 … +1)</span></div>` + bar('corrAll', 'General') + bar('corrLow', 'Graves (< 150 Hz)');
+}
+$('resetAll').onclick = () => { P = structuredClone(AUTO); G && G.apply(P); ensureIR(); buildModules(); };
+
+// presets (solo en este navegador)
+function loadPresets() { try { return JSON.parse(localStorage.getItem('stemPresets') || '{}'); } catch { return {}; } }
+function refreshPresets() {
+  const ps = loadPresets(), s = $('presetSel');
+  s.innerHTML = '<option value="">Presets guardados…</option>' + Object.keys(ps).map((n) => `<option>${n.replace(/</g, '&lt;')}</option>`).join('');
+}
+$('presetSave').onclick = () => {
+  if (!P) return;
+  const n = prompt('Nombre del preset:'); if (!n) return;
+  const ps = loadPresets(); const c = structuredClone(P); delete c.notches; ps[n] = c;
+  try { localStorage.setItem('stemPresets', JSON.stringify(ps)); } catch {}
+  refreshPresets();
+};
+$('presetSel').onchange = () => {
+  const ps = loadPresets(), n = $('presetSel').value; if (!n || !ps[n] || !P) return;
+  P = { ...P, ...ps[n] }; G && G.apply(P); ensureIR(); buildModules(); $('presetSel').value = '';
+};
+refreshPresets();
+
+// =============================================================================
+// Grafo de audio (se usa igual para la preescucha y para exportar)
+// =============================================================================
+async function createGraph(c, B, offline) {
+  await c.audioWorklet.addModule('/static/worklets.js');
+  const nch = B.x.numberOfChannels, sr = c.sampleRate, nyq = sr / 2 * 0.95;
+  const wopts = { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [nch], channelCount: nch, channelCountMode: 'explicit' };
+  // en paso alto/bajo WebAudio interpreta Q en dB: 0,707 lineal (Butterworth) = −3,01 dB
+  const bq = (type, f, q, g) => { const b = c.createBiquadFilter(); b.type = type; b.frequency.value = Math.min(f, nyq); if (q != null) b.Q.value = (type === 'lowpass' || type === 'highpass') ? 20 * Math.log10(q) : q; if (g != null) b.gain.value = g; return b; };
+  const gain = (v = 1) => { const g = c.createGain(); g.gain.value = v; return g; };
+  const set = (prm, v) => { if (offline) prm.value = v; else prm.setTargetAtTime(v, c.currentTime, 0.015); };
+  const g = { c, B, nch, sources: [], all: [] };
+  g.B = B;
+
+  g.clean = gain(); g.w = {}; g.dw = {};
+  if (!offline) { g.delta = gain(); g.orig = gain(); }
+  for (const k of KEYS) { g.w[k] = gain(0); g.w[k].connect(g.clean); if (!offline) { g.dw[k] = gain(0); g.dw[k].connect(g.delta); } }
+  g.hp1 = bq('highpass', 70, 0.707); g.hp2 = bq('highpass', 10, 0.707);
+  g.gate = new AudioWorkletNode(c, 'gate-processor', wopts);
+  g.eq = { tiltL: bq('lowshelf', 1000, null, 0), tiltH: bq('highshelf', 1000, null, 0), low: bq('lowshelf', 100, null, 0), mud: bq('peaking', 300, 1.0, 0), mid: bq('peaking', 800, 0.9, 0), pres: bq('peaking', 2500, 1.0, 0), harsh: bq('peaking', 4500, 1.4, 0), air: bq('highshelf', 10000, null, 0), lp1: bq('lowpass', nyq, 0.707), lp2: bq('lowpass', nyq, 0.707) };
+  g.notch = Array.from({ length: 8 }, () => bq('peaking', 1000, 6, 0));
+  g.restore = new AudioWorkletNode(c, 'restore-processor', wopts);
+  g.deh = new AudioWorkletNode(c, 'deharsh-processor', wopts);
+  g.comp = new AudioWorkletNode(c, 'comp-processor', wopts);
+  g.mic = { low: bq('lowshelf', 130, null, 0), body: bq('peaking', 220, 0.8, 0), pres: bq('peaking', 4800, 0.7, 0), air: bq('highshelf', 11000, null, 0) };
+  g.exIn = gain(); g.exHP = bq('highpass', 3000, 0.707); g.exLP = bq('lowpass', 8000, 0.707); g.exPre = gain(4);
+  g.exSh = c.createWaveShaper(); g.exSh.curve = curve((u) => Math.tanh(2.5 * u));
+  g.exHP2 = bq('highpass', 5000, 0.707); g.exG = gain(0);
+  g.satPre = gain(0.25); g.sat = c.createWaveShaper(); g.satPost = gain(4); g.dc = bq('highpass', 10, 0.707);
+  g.stereo = new AudioWorkletNode(c, 'stereo-processor', wopts);
+  g.dry = gain(1); g.revHP = bq('highpass', 200, 0.707); g.conv = c.createConvolver(); g.conv.normalize = true; g.revG = gain(0);
+  g.out = gain(1);
+  g.lim = new AudioWorkletNode(c, 'limiter-processor', wopts);
+
+  const chain = [g.clean, g.hp1, g.hp2, g.gate, g.eq.tiltL, g.eq.tiltH, g.eq.low, g.eq.mud, g.eq.mid, g.eq.pres, g.eq.harsh, g.eq.air, g.eq.lp1, g.eq.lp2, ...g.notch,
+    g.deh, g.restore, g.comp, g.mic.low, g.mic.body, g.mic.pres, g.mic.air, g.exIn];
+  for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
+  // excitador en paralelo
+  g.exIn.connect(g.satPre); g.exIn.connect(g.exHP); g.exHP.connect(g.exLP); g.exLP.connect(g.exPre); g.exPre.connect(g.exSh); g.exSh.connect(g.exHP2); g.exHP2.connect(g.exG); g.exG.connect(g.satPre);
+  g.satPre.connect(g.sat); g.sat.connect(g.satPost); g.satPost.connect(g.dc); g.dc.connect(g.stereo);
+  g.stereo.connect(g.dry); g.stereo.connect(g.revHP); g.revHP.connect(g.conv); g.conv.connect(g.revG);
+  g.dry.connect(g.out); g.revG.connect(g.out); g.out.connect(g.lim);
+
+  if (offline) g.lim.connect(c.destination);
+  else {
+    g.procMon = gain(1); g.origMatch = gain(1); g.origMon = gain(0); g.deltaMon = gain(0);
+    g.lim.connect(g.procMon); g.orig.connect(g.origMatch); g.origMatch.connect(g.origMon); g.delta.connect(g.deltaMon);
+    g.mon = gain(1); [g.procMon, g.origMon, g.deltaMon].forEach((n) => n.connect(g.mon));
+    g.mon.connect(c.destination);
+    g.anaMon = c.createAnalyser(); g.anaMon.fftSize = 8192; g.anaMon.smoothingTimeConstant = 0.82; g.mon.connect(g.anaMon);
+    g.anaP = c.createAnalyser(); g.anaP.fftSize = 2048; g.lim.connect(g.anaP);
+    g.anaO = c.createAnalyser(); g.anaO.fftSize = 2048; g.orig.connect(g.anaO);
+    g.lim.port.onmessage = (e) => meters(e.data);
+    if (nch === 2) {
+      const sp = c.createChannelSplitter(2); g.lim.connect(sp);
+      g.ph = [0, 1].map((i) => { const a = c.createAnalyser(); a.fftSize = 4096; sp.connect(a, i); return a; });
+      g.phLow = [0, 1].map((i) => { const f = bq('lowpass', 150, 0.707), a = c.createAnalyser(); a.fftSize = 8192; sp.connect(f, i); f.connect(a); return a; });
+    }
+    g.comp.port.onmessage = (e) => { const el = $('compGr'); if (el) el.textContent = P['comp.on'] ? `GR ${e.data.toFixed(1)} dB` : ''; };
+    g.deh.port.onmessage = (e) => { const el = $('dehGr'); if (el) el.textContent = P['deh.on'] ? `${e.data[0].toFixed(1)} / ${e.data[1].toFixed(1)} dB` : ''; };
+    g.gate.port.onmessage = (e) => { const el = $('gateGr'); if (el) el.textContent = P['gate.on'] ? `−${Math.abs(e.data).toFixed(1)} dB` : ''; };
+  }
+  let satAmt = -1;
+  const pm = (node, name) => node.parameters.get(name);
+
+  g.apply = (P) => {
+    const pn = P['clean.nr'] / 100, pa = P['clean.art'] / 100;
+    const w = { x: (1 - pn) * (1 - pa), n: pn * (1 - pa), a: (1 - pn) * pa, na: pn * pa, r: (P['rep.fill'] || 0) / 100, h: (P['rep.hf'] || 0) / 100, e: (P['rep.bal'] || 0) / 100 };
+    for (const k of KEYS) { set(g.w[k].gain, w[k]); if (!offline) set(g.dw[k].gain, k === 'x' ? 1 - w.x : (k === 'r' || k === 'h' || k === 'e') ? 0 : -w[k]); }
+    set(pm(g.deh, 'enabled'), P['deh.on'] ? 1 : 0); set(pm(g.deh, 'depth'), P['deh.depth'] ?? 0); set(pm(g.deh, 'sens'), P['deh.sens'] ?? 4);
+    // la referencia 'equilibrada' solo vale para la frecuencia que analizó el servidor
+    set(pm(g.deh, 'r1'), P['deh.f1'] === AUTO['deh.f1'] ? (P['deh.r1'] ?? 99) : 99);
+    set(pm(g.deh, 'r2'), P['deh.f2'] === AUTO['deh.f2'] ? (P['deh.r2'] ?? 99) : 99);
+    set(pm(g.deh, 'f1'), P['deh.f1'] ?? 3200); set(pm(g.deh, 'f2'), Math.min(P['deh.f2'] ?? 7000, nyq));
+    const eqOn = P['eq.on'];
+    set(g.hp1.frequency, eqOn ? P['hpf.freq'] : 10);
+    set(g.hp2.frequency, eqOn && P['hpf.slope'] == 24 ? P['hpf.freq'] : 10);
+    set(pm(g.gate, 'enabled'), P['gate.on'] ? 1 : 0);
+    set(pm(g.gate, 'threshold'), P['gate.thr']); set(pm(g.gate, 'ratio'), P['gate.ratio']); set(pm(g.gate, 'range'), P['gate.range']);
+    set(pm(g.gate, 'attack'), P['gate.att']); set(pm(g.gate, 'release'), P['gate.rel']); set(pm(g.gate, 'hold'), P['gate.hold']);
+    const E = (b, gk, fk) => { set(b.gain, eqOn ? P[gk] : 0); if (fk) set(b.frequency, Math.min(P[fk], nyq)); };
+    set(g.eq.tiltL.gain, eqOn ? -(P['eq.tilt'] || 0) : 0); set(g.eq.tiltH.gain, eqOn ? (P['eq.tilt'] || 0) : 0);
+    E(g.eq.low, 'eq.low_g', 'eq.low_f'); E(g.eq.mud, 'eq.mud_g', 'eq.mud_f'); E(g.eq.mid, 'eq.mid_g', 'eq.mid_f');
+    E(g.eq.pres, 'eq.pres_g', 'eq.pres_f'); E(g.eq.harsh, 'eq.harsh_g', 'eq.harsh_f'); E(g.eq.air, 'eq.air_g', 'eq.air_f');
+    const lp = eqOn && P['eq.lpf'] < 19900 ? Math.min(P['eq.lpf'], nyq) : nyq;
+    set(g.eq.lp1.frequency, lp); set(g.eq.lp2.frequency, eqOn && P['eq.lpf'] < 19900 ? lp : nyq);
+    g.notch.forEach((b, i) => {
+      const n = P.notches[i];
+      if (n && n.on && eqOn) { set(b.frequency, Math.min(Math.max(n.f, 20), nyq)); set(b.Q, Math.max(0.3, n.q)); set(b.gain, n.g); } else set(b.gain, 0);
+    });
+    set(pm(g.restore, 'enabled'), P['dyn.on'] ? 1 : 0);
+    set(pm(g.restore, 'crisp'), P['dyn.crisp'] ?? 0);
+    set(pm(g.restore, 'attack'), P['dyn.attack']); set(pm(g.restore, 'sustain'), P['dyn.sustain']); set(pm(g.restore, 'expand'), P['dyn.expand']);
+    set(pm(g.comp, 'enabled'), P['comp.on'] ? 1 : 0);
+    set(pm(g.comp, 'threshold'), P['comp.thr']); set(pm(g.comp, 'ratio'), P['comp.ratio']); set(pm(g.comp, 'attack'), P['comp.att']);
+    set(pm(g.comp, 'release'), P['comp.rel']); set(pm(g.comp, 'knee'), P['comp.knee']); set(pm(g.comp, 'makeup'), P['comp.makeup']);
+    const micOn = P['mic.on'], a = micOn ? P['mic.amount'] / 100 : 0;
+    set(g.mic.low.gain, 1.5 * a); set(g.mic.body.gain, 0.6 * a); set(g.mic.pres.gain, 1.8 * a); set(g.mic.air.gain, 2.5 * a);
+    set(g.exG.gain, micOn ? (P['mic.excite'] / 100) * 0.35 : 0);
+    const s = micOn ? P['mic.sat'] / 100 : 0;
+    if (Math.abs(s - satAmt) > 0.004) { satAmt = s; g.sat.curve = s < 0.005 ? curve((u) => u) : satCurve(s); }
+    set(pm(g.stereo, 'width'), P['stereo.width'] / 100);
+    pm(g.stereo, 'flip').value = P['stereo.flip'] ? 1 : 0; pm(g.stereo, 'align').value = P['stereo.align'] || 0;
+    pm(g.stereo, 'monobass').value = P['stereo.monobass'] ? 1 : 0; pm(g.stereo, 'monofreq').value = P['stereo.monofreq'] || 120;
+    set(g.revG.gain, P['rev.on'] ? (P['rev.mix'] / 100) * 0.9 : 0);
+    if (IR && g.conv.buffer !== IR) g.conv.buffer = IR;
+    set(g.out.gain, Math.pow(10, P['out.gain'] / 20));
+    set(pm(g.lim, 'ceiling'), P['out.ceil']);
+  };
+  g.eqNodes = () => [g.hp1, g.hp2, ...Object.values(g.eq), ...g.notch, ...Object.values(g.mic)];
+  g.start = (offset, loop) => {
+    g.stop();
+    const when = c.currentTime + (offline ? 0 : 0.04);
+    for (const k of KEYS) {
+      const s = c.createBufferSource(); s.buffer = g.B[k];
+      if (loop) { s.loop = true; s.loopStart = loop[0]; s.loopEnd = loop[1]; }
+      s.connect(g.w[k]); if (!offline) { s.connect(g.dw[k]); if (k === 'x') s.connect(g.orig); }
+      s.start(when, offset); g.sources.push(s);
+    }
+    return when;
+  };
+  g.stop = () => { g.sources.forEach((s) => { try { s.onended = null; s.stop(); s.disconnect(); } catch {} }); g.sources = []; };
+  g.setMode = (m) => {
+    set(g.procMon.gain, m === 'proc' ? 1 : 0); set(g.origMon.gain, m === 'orig' ? 1 : 0); set(g.deltaMon.gain, m === 'delta' ? 1 : 0);
+  };
+  g.disconnect = () => { g.stop(); try { g.mon.disconnect(); } catch {} };
+  return g;
+}
+
+function curve(fn, n = 4097) { const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = fn((i / (n - 1)) * 2 - 1); return a; }
+function satCurve(s) {
+  // saturación tipo válvula: ganancia 1 en señal baja, armónicos pares por asimetría.
+  // u ∈ [-1,1] representa x ∈ [-4,4] (12 dB de margen antes de recortar).
+  const d = 0.3 + 2.2 * s, b = 0.25 * s, tb = Math.tanh(d * b), norm = d * (1 - tb * tb);
+  return curve((u) => { const x = 4 * u; return ((Math.tanh(d * (x + b)) - tb) / norm) / 4; });
+}
+
+// respuesta al impulso de la reverb (generada, sin archivos externos)
+async function ensureIR(force) {
+  if (!ctx || !P) return;
+  const key = [P['rev.type'], P['rev.size'], P['rev.predelay'], P['rev.tone'], ctx.sampleRate].join('|');
+  if (!force && key === irKey) return;
+  clearTimeout(ensureIR.t);
+  await new Promise((r) => (ensureIR.t = setTimeout(r, force ? 0 : 150)));
+  irKey = key; IR = makeIR(ctx.sampleRate, P['rev.type'], P['rev.size'], P['rev.predelay'] / 1000, P['rev.tone'] / 100);
+  if (G) G.conv.buffer = IR;
+}
+function makeIR(sr, type, size, pre, tone) {
+  const len = Math.floor(sr * (pre + size * 1.3)) + 1, buf = new AudioBuffer({ numberOfChannels: 2, length: len, sampleRate: sr });
+  let seed = 12345; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
+  const p0 = Math.floor(pre * sr);
+  const er = type === 'placa' ? [] : Array.from({ length: type === 'estudio' ? 14 : 10 }, () => [Math.abs(rnd()) * (type === 'sala' ? 0.08 : 0.04), rnd() * 0.6]);
+  const cut0 = 2000 + tone * 14000, damp = 1.2 + (1 - tone) * 3;
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch); let lp = 0;
+    for (let i = p0; i < len; i++) {
+      const t = (i - p0) / sr;
+      const fc = Math.max(400, cut0 * Math.exp(-t * damp / size));
+      const a = 1 - Math.exp(-2 * Math.PI * fc / sr);
+      lp += a * (rnd() - lp);
+      const fade = type === 'placa' ? 1 : Math.min(1, t / 0.008);
+      d[i] = lp * Math.exp(-6.9 * t / size) * fade;
+    }
+    for (const [tt, gg] of er) { const i = p0 + Math.floor((tt + ch * 0.0017) * sr); if (i < len) d[i] += gg * (ch ? -1 : 1) * 0.8; }
+  }
+  return buf;
+}
+
+// =============================================================================
+// Transporte y comparación antes/después
+// =============================================================================
+const fmtTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+function loopRange() { return loopOn && region ? region : null; }
+async function startPlay() {
+  if (!G) return;
+  await ctx.resume();
+  const dur = B.x.duration, lr = loopRange();
+  if (pos >= dur - 0.01) pos = 0;
+  if (lr && (pos < lr[0] || pos >= lr[1])) pos = lr[0];
+  startOff = pos; startT = G.start(pos, lr); playing = true; $('play').textContent = '❚❚';
+  if (!lr) G.sources[0].onended = () => { if (playing) { playing = false; pos = 0; $('play').textContent = '▶'; } };
+}
+function stopPlay() { if (G) G.stop(); if (playing) pos = curPos(); playing = false; $('play').textContent = '▶'; }
+function curPos() {
+  if (!playing) return pos;
+  const el = Math.max(0, ctx.currentTime - startT), lr = loopRange();
+  if (lr) { const L = lr[1] - lr[0]; let p = startOff + el; if (p >= lr[1]) p = lr[0] + ((p - lr[0]) % L); return p; }
+  return Math.min(startOff + el, B.x.duration);
+}
+$('play').onclick = () => (playing ? stopPlay() : startPlay());
+$('stop').onclick = () => { stopPlay(); pos = region && loopOn ? region[0] : 0; };
+$('loop').onclick = () => { loopOn = !loopOn; $('loop').style.background = loopOn ? 'var(--acc2)' : ''; $('loop').style.color = loopOn ? '#062027' : ''; if (playing) { stopPlay(); startPlay(); } };
+function setMode(m) { mode = m; document.querySelectorAll('#ab button').forEach((b) => b.classList.toggle('on', b.dataset.m === m)); G && G.setMode(m); }
+document.querySelectorAll('#ab button').forEach((b) => (b.onclick = () => setMode(b.dataset.m)));
+document.addEventListener('keydown', (e) => {
+  if (!G || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && document.activeElement.type !== 'range') return;
+  if (e.code === 'Space') { e.preventDefault(); playing ? stopPlay() : startPlay(); }
+  else if (e.key === 'a' || e.key === 'A') setMode('orig');
+  else if (e.key === 'b' || e.key === 'B') setMode('proc');
+});
+
+// medidores
+let lastMeter = { l: 0, r: 0, gr: 0 };
+function meters(d) { lastMeter = d; }
+const pct = (v) => Math.max(0, Math.min(100, (20 * Math.log10(v + 1e-9) + 48) / 48 * 100));
+
+// forma de onda
+let peaks = null;
+function prepWave() {
+  const cv = $('wave'), W = Math.round(cv.clientWidth * devicePixelRatio); if (!W) return; cv.width = W; cv.height = cv.clientHeight * devicePixelRatio;
+  const d = B.x.getChannelData(0), d2 = B.x.numberOfChannels > 1 ? B.x.getChannelData(1) : d, step = Math.max(1, Math.floor(d.length / W));
+  peaks = new Float32Array(W * 2);
+  for (let x = 0; x < W; x++) {
+    let mn = 0, mx = 0; const s = x * step;
+    for (let i = s; i < s + step && i < d.length; i++) { const v = (d[i] + d2[i]) * 0.5; if (v < mn) mn = v; if (v > mx) mx = v; }
+    peaks[x * 2] = mn; peaks[x * 2 + 1] = mx;
+  }
+}
+window.addEventListener('resize', () => B && prepWave());
+(() => {
+  const cv = $('wave'); let down = null;
+  const t = (e) => { const r = cv.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * B.x.duration; };
+  cv.onmousedown = (e) => { if (!B) return; down = t(e); };
+  window.addEventListener('mousemove', (e) => { if (down == null) return; const x = t(e); if (Math.abs(x - down) > 0.05) region = [Math.min(x, down), Math.max(x, down)]; });
+  window.addEventListener('mouseup', (e) => {
+    if (down == null) return; const x = t(e), was = playing;
+    if (Math.abs(x - down) <= 0.05) { region = null; pos = x; if (was) { stopPlay(); pos = x; startPlay(); } }
+    else { loopOn = true; $('loop').style.background = 'var(--acc2)'; $('loop').style.color = '#062027'; stopPlay(); pos = region[0]; if (was || true) startPlay(); }
+    down = null;
+  });
+})();
+
+// bucle de dibujo
+const freqPts = new Float32Array(240); for (let i = 0; i < 240; i++) freqPts[i] = 20 * Math.pow(1000, i / 239);
+const magTmp = new Float32Array(240), phTmp = new Float32Array(240);
+let specData = null, tdP = null, tdO = null, lastMatch = 0, avgSpec = null, phBuf = null, phLowBuf = null, corrS = [1, 1];
+function corrOf(a, b) { let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; aa += a[i] * a[i]; bb += b[i] * b[i]; } return aa * bb > 1e-12 ? ab / Math.sqrt(aa * bb) : null; }
+function showCorr(id, v) {
+  const el = $(id); if (!el) return;
+  if (v == null) { $(id + 'v').textContent = '–'; return; }
+  el.style.left = (50 + v * 50) + '%'; el.style.background = v < 0 ? 'var(--bad)' : v < 0.3 ? 'var(--warn)' : 'var(--ok)';
+  $(id + 'v').textContent = (v > 0 ? '+' : '') + v.toFixed(2);
+}
+function draw() {
+  requestAnimationFrame(draw);
+  if (!G || !B) return;
+  const p = curPos();
+  $('time').textContent = `${fmtTime(p)} / ${fmtTime(B.x.duration)}`;
+  // forma de onda
+  const cv = $('wave');
+  if (cv.clientWidth && cv.width !== Math.round(cv.clientWidth * devicePixelRatio)) prepWave();
+  const c2 = cv.getContext('2d'), W = cv.width, H = cv.height;
+  c2.clearRect(0, 0, W, H);
+  if (region) { c2.fillStyle = loopOn ? '#5fb6c933' : '#ffffff14'; c2.fillRect(region[0] / B.x.duration * W, 0, (region[1] - region[0]) / B.x.duration * W, H); }
+  if (peaks) {
+    const px = p / B.x.duration * W;
+    for (let x = 0; x < W; x++) {
+      c2.fillStyle = x < px ? (mode === 'orig' ? '#9aa3b5' : '#e2a54a') : '#3d4452';
+      const y1 = (1 - peaks[x * 2 + 1]) * H / 2, y2 = (1 - peaks[x * 2]) * H / 2; c2.fillRect(x, y1, 1, Math.max(1, y2 - y1));
+    }
+    c2.fillStyle = '#fff'; c2.fillRect(px, 0, 2, H);
+  }
+  drawSpec();
+  // espectro + curva EQ
+  const sv = $('spec'), s2 = sv.getContext('2d');
+  if (sv.width !== sv.clientWidth * devicePixelRatio) { sv.width = sv.clientWidth * devicePixelRatio; sv.height = sv.clientHeight * devicePixelRatio; }
+  const SW = sv.width, SH = sv.height; s2.clearRect(0, 0, SW, SH);
+  const fx = (f) => Math.log(f / 20) / Math.log(1000) * SW;
+  s2.strokeStyle = '#ffffff10'; s2.fillStyle = '#6d7484'; s2.font = `${10 * devicePixelRatio}px sans-serif`;
+  for (const f of [50, 100, 200, 500, 1000, 2000, 5000, 10000]) { const x = fx(f); s2.beginPath(); s2.moveTo(x, 0); s2.lineTo(x, SH); s2.stroke(); s2.fillText(fmtHz(f), x + 3, SH - 4); }
+  if (!specData) specData = new Float32Array(G.anaMon.frequencyBinCount);
+  G.anaMon.getFloatFrequencyData(specData);
+  const binHz = ctx.sampleRate / G.anaMon.fftSize;
+  s2.beginPath(); s2.moveTo(0, SH);
+  for (let x = 0; x < SW; x += 2) {
+    const f = 20 * Math.pow(1000, x / SW), b = Math.min(specData.length - 1, Math.round(f / binHz));
+    const v = Math.max(-110, specData[b] || -110), y = SH - (v + 110) / 100 * SH; s2.lineTo(x, y);
+  }
+  s2.lineTo(SW, SH); s2.closePath(); s2.fillStyle = '#5fb6c955'; s2.fill();
+  // espectro medio a largo plazo y su pendiente frente a la de referencia
+  if (!avgSpec || avgSpec.length !== specData.length) avgSpec = new Float32Array(specData.length).fill(-200);
+  if (playing) for (let i = 0; i < specData.length; i++) { const pw = Math.pow(10, specData[i] / 10); avgSpec[i] = avgSpec[i] < -190 ? pw : avgSpec[i] * 0.985 + pw * 0.015; }
+  if (avgSpec[10] > -190) {
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, n = 0;
+    for (let k = 0; k < 60; k++) {
+      const f = 60 * Math.pow(200, k / 59), b0 = Math.round(f / 1.06 / binHz), b1 = Math.max(b0 + 1, Math.round(f * 1.06 / binHz));
+      let pw = 0; for (let b = b0; b < b1 && b < avgSpec.length; b++) pw += avgSpec[b]; pw /= (b1 - b0);
+      const xo = Math.log2(f), yv = 10 * Math.log10(pw + 1e-20); sx += xo; sy += yv; sxx += xo * xo; sxy += xo * yv; n++;
+    }
+    const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx), icpt = (sy - slope * sx) / n;
+    const yAt = (f, sl, ic) => SH - ((sl * Math.log2(f) + ic) + 110) / 100 * SH;
+    const st = AUTO['eq.slope_target'] ?? -4.5, ic2 = slope * Math.log2(1000) + icpt - st * Math.log2(1000);
+    s2.setLineDash([6 * devicePixelRatio, 5 * devicePixelRatio]); s2.strokeStyle = '#ffffff80'; s2.beginPath();
+    s2.moveTo(fx(40), yAt(40, st, ic2)); s2.lineTo(fx(16000), yAt(16000, st, ic2)); s2.stroke(); s2.setLineDash([]);
+    s2.strokeStyle = '#6cc58a'; s2.lineWidth = 1.5 * devicePixelRatio; s2.beginPath();
+    s2.moveTo(fx(60), yAt(60, slope, icpt)); s2.lineTo(fx(12000), yAt(12000, slope, icpt)); s2.stroke(); s2.lineWidth = 1;
+    $('slopeTxt').textContent = `Pendiente actual ${slope.toFixed(1)} dB/oct · referencia ${st} dB/oct`;
+  }
+  const tot = new Float32Array(240);
+  for (const n of G.eqNodes()) { n.getFrequencyResponse(freqPts, magTmp, phTmp); for (let i = 0; i < 240; i++) tot[i] += 20 * Math.log10(magTmp[i] + 1e-9); }
+  s2.beginPath(); s2.strokeStyle = '#e2a54a'; s2.lineWidth = 2 * devicePixelRatio;
+  for (let i = 0; i < 240; i++) { const x = i / 239 * SW, y = SH / 2 - Math.max(-24, Math.min(24, tot[i])) / 24 * SH / 2; i ? s2.lineTo(x, y) : s2.moveTo(x, y); }
+  s2.stroke(); s2.lineWidth = 1;
+  s2.strokeStyle = '#e2a54a40'; s2.beginPath(); s2.moveTo(0, SH / 2); s2.lineTo(SW, SH / 2); s2.stroke();
+  // correlación de fase
+  if (G.ph && playing) {
+    if (!phBuf) { phBuf = [new Float32Array(4096), new Float32Array(4096)]; phLowBuf = [new Float32Array(8192), new Float32Array(8192)]; }
+    G.ph[0].getFloatTimeDomainData(phBuf[0]); G.ph[1].getFloatTimeDomainData(phBuf[1]);
+    G.phLow[0].getFloatTimeDomainData(phLowBuf[0]); G.phLow[1].getFloatTimeDomainData(phLowBuf[1]);
+    const c1 = corrOf(phBuf[0], phBuf[1]), c2 = corrOf(phLowBuf[0], phLowBuf[1]);
+    if (c1 != null) corrS[0] = corrS[0] * 0.85 + c1 * 0.15; if (c2 != null) corrS[1] = corrS[1] * 0.85 + c2 * 0.15;
+    showCorr('corrAll', c1 == null ? null : corrS[0]); showCorr('corrLow', c2 == null ? null : corrS[1]);
+  }
+  // medidores
+  $('mL').style.width = pct(lastMeter.l) + '%'; $('mR').style.width = pct(lastMeter.r) + '%';
+  $('limGr').textContent = lastMeter.gr < -0.1 ? `lim ${lastMeter.gr.toFixed(1)} dB` : '';
+  // igualación de volumen antes/después
+  if (playing && ctx.currentTime - lastMatch > 0.1) {
+    lastMatch = ctx.currentTime;
+    if (!tdP) { tdP = new Float32Array(2048); tdO = new Float32Array(2048); }
+    G.anaP.getFloatTimeDomainData(tdP); G.anaO.getFloatTimeDomainData(tdO);
+    let a = 0, b = 0; for (let i = 0; i < 2048; i++) { a += tdP[i] * tdP[i]; b += tdO[i] * tdO[i]; }
+    pwrP = pwrP * 0.97 + a * 0.03; pwrO = pwrO * 0.97 + b * 0.03;
+    if (pwrO > 1e-7 && pwrP > 1e-7) matchG = Math.max(0.25, Math.min(4, Math.sqrt(pwrP / pwrO)));
+    G.origMatch.gain.setTargetAtTime($('matchAB').checked ? matchG : 1, ctx.currentTime, 0.2);
+  }
+}
+requestAnimationFrame(draw);
+
+// =============================================================================
+// Espectrograma, selección y reparación manual
+// =============================================================================
+let specView = 'despues', specImg = {}, sel = null, edits = 0;
+const SPEC_FMIN = 40;
+function loadSpecImages() {
+  const t = Date.now();
+  for (const v of ['antes', 'despues', 'mapa']) { const im = new Image(); im.src = `/api/spec/${jobId}/${v}?t=${t}`; specImg[v] = im; }
+  $('specLegend').innerHTML = '';
+}
+document.querySelectorAll('#specTabs button').forEach((b) => (b.onclick = () => {
+  specView = b.dataset.v; document.querySelectorAll('#specTabs button').forEach((x) => x.classList.toggle('on', x === b));
+  $('specLegend').innerHTML = specView === 'mapa' ? '<span class="dot" style="background:#e64a3c"></span>eliminado &nbsp; <span class="dot" style="background:#4fd27a"></span>reconstruido / añadido' : '';
+}));
+const nyqF = () => (ANALYSIS ? ANALYSIS.sr / 2 : 22050);
+const yToF = (y) => SPEC_FMIN * Math.pow(nyqF() / SPEC_FMIN, 1 - y);
+const fToY = (f) => 1 - Math.log(f / SPEC_FMIN) / Math.log(nyqF() / SPEC_FMIN);
+function drawSpec() {
+  const cv = $('sgram'); if (!cv || !B || $('specCard').classList.contains('hidden')) return;
+  const W = Math.round(cv.clientWidth * devicePixelRatio), H = Math.round(cv.clientHeight * devicePixelRatio);
+  if (cv.width !== W) { cv.width = W; cv.height = H; }
+  const c2 = cv.getContext('2d'), im = specImg[specView];
+  c2.fillStyle = '#000'; c2.fillRect(0, 0, W, H);
+  if (im && im.complete && im.naturalWidth) c2.drawImage(im, 0, 0, W, H);
+  if (sel) {
+    const x0 = sel.t0 / B.x.duration * W, x1 = sel.t1 / B.x.duration * W, y0 = fToY(sel.f1) * H, y1 = fToY(sel.f0) * H;
+    c2.fillStyle = '#5fb6c933'; c2.fillRect(x0, y0, x1 - x0, y1 - y0);
+    c2.strokeStyle = '#5fb6c9'; c2.lineWidth = 2; c2.strokeRect(x0, y0, x1 - x0, y1 - y0);
+  }
+  const px = curPos() / B.x.duration * W; c2.fillStyle = '#fff'; c2.fillRect(px, 0, 2, H);
+}
+$('sgFreq').innerHTML = '';
+(() => {
+  const cv = $('sgram'); let st = null;
+  const pt = (e) => { const r = cv.getBoundingClientRect(); return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))]; };
+  cv.onmousedown = (e) => { if (!B) return; st = pt(e); };
+  window.addEventListener('mousemove', (e) => {
+    if (!st) return; const p = pt(e);
+    if (Math.abs(p[0] - st[0]) * cv.clientWidth < 4) return;
+    const d = B.x.duration;
+    sel = { t0: Math.min(p[0], st[0]) * d, t1: Math.max(p[0], st[0]) * d, f0: yToF(Math.max(p[1], st[1])), f1: yToF(Math.min(p[1], st[1])) };
+    updateSelBar();
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (!st) return; const p = pt(e);
+    if (Math.abs(p[0] - st[0]) * cv.clientWidth < 4) { sel = null; updateSelBar(); const was = playing; stopPlay(); pos = p[0] * B.x.duration; if (was) startPlay(); }
+    st = null;
+  });
+})();
+function updateSelBar() {
+  const has = !!sel;
+  ['selPlay', 'selGain', 'selAtt', 'selRep'].forEach((id) => ($(id).disabled = !has));
+  $('selUndo').disabled = !edits;
+  $('selInfo').textContent = has ? `Zona: ${fmtTime(sel.t0)} – ${fmtTime(sel.t1)} · ${fmtHz(sel.f0)} – ${fmtHz(sel.f1)}` : 'Sin selección';
+}
+$('selPlay').onclick = () => { region = [sel.t0, sel.t1]; loopOn = true; $('loop').style.background = 'var(--acc2)'; $('loop').style.color = '#062027'; stopPlay(); pos = sel.t0; startPlay(); };
+async function doEdit(url, body, msg) {
+  const was = playing; stopPlay();
+  ['selAtt', 'selRep', 'selUndo'].forEach((id) => ($(id).disabled = true));
+  $('editStatus').textContent = msg;
+  try {
+    const r = await (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })).json();
+    if (r.error) throw new Error(r.error);
+    edits = r.edits;
+    B = await fetchBuffers(); G.B = B; prepWave(); loadSpecImages();
+    $('editStatus').textContent = edits ? `✅ ${edits} ${edits === 1 ? 'reparación manual aplicada' : 'reparaciones manuales aplicadas'}` : 'Sin reparaciones manuales';
+    if (was) startPlay();
+  } catch (e) { $('editStatus').textContent = '❌ ' + e.message; }
+  updateSelBar();
+}
+$('selAtt').onclick = () => doEdit(`/api/edit/${jobId}`, { ...sel, mode: 'atenuar', gain: +$('selGain').value }, 'Atenuando la zona…');
+$('selRep').onclick = () => doEdit(`/api/edit/${jobId}`, { ...sel, mode: 'reparar' }, 'Reparando la zona…');
+$('selUndo').onclick = () => doEdit(`/api/undo/${jobId}`, {}, 'Deshaciendo…');
+
+// =============================================================================
+// iZotope RX: enviar, vigilar el guardado y reimportar automáticamente
+// =============================================================================
+let rxTimer = null;
+fetch('/api/rx/info').then((r) => r.json()).then((i) => {
+  $('rxName').textContent = i.app ? `· detectado: ${i.app}` : '· no encontrado en Aplicaciones';
+  $('rxFolder').textContent = i.folder;
+  if (!i.app) { $('rxSend').disabled = true; $('rxFinal').disabled = true; }
+});
+$('rxSend').onclick = async () => {
+  const r = await (await fetch(`/api/rx/send/${jobId}?kind=original`, { method: 'POST' })).json();
+  if (r.error) { $('rxStatus').textContent = '❌ ' + r.error; return; }
+  $('rxStatus').textContent = r.opened ? `🎧 Abierto en ${r.app}. Repara y guarda con ⌘S: en cuanto guardes, se importará aquí solo.` : `No se pudo abrir RX. El archivo está en ${r.path}`;
+  watchRX();
+};
+function watchRX() {
+  clearInterval(rxTimer);
+  const jid = jobId;
+  rxTimer = setInterval(async () => {
+    if (jid !== jobId) return clearInterval(rxTimer);
+    const s = await (await fetch(`/api/rx/status/${jid}`)).json();
+    if (!s.watching) return;
+    if (s.changed && !s.ready) $('rxStatus').textContent = '💾 Detectado guardado en RX, esperando a que termine de escribir…';
+    if (s.ready) { clearInterval(rxTimer); importFromRX(); }
+  }, 1500);
+}
+async function importFromRX() {
+  $('rxStatus').textContent = '⬇️ Importando la versión de RX y volviendo a analizar (se mantienen tus ajustes)…';
+  const r = await (await fetch(`/api/rx/import/${jobId}`, { method: 'POST' })).json();
+  if (r.error) { $('rxStatus').textContent = '❌ ' + r.error; return; }
+  stopPlay(); jobId = r.id; pendingFile = null;
+  const k = $('keep').checked; $('keep').checked = true;
+  await runAnalysis();
+  $('keep').checked = k;
+  $('rxStatus').textContent = '✅ Versión de RX importada. Puedes seguir retocando en RX (⌘S de nuevo la reimporta) o terminar aquí.';
+  watchRX();
+}
+$('rxFinal').onclick = async () => {
+  const btn = $('rxFinal'); btn.disabled = true;
+  try {
+    $('rxStatus').textContent = 'Renderizando el resultado final…';
+    const out = await renderFinal((f) => ($('rxStatus').textContent = `Renderizando el resultado final… ${Math.round(f * 100)}%`));
+    const r = await (await fetch(`/api/rx/send/${jobId}?kind=final`, { method: 'POST', body: encodeWav(out, true) })).json();
+    $('rxStatus').textContent = r.opened ? `🎧 Resultado final abierto en ${r.app} (${r.path}). Guárdalo desde RX donde quieras.` : `Archivo creado en ${r.path}`;
+  } catch (e) { $('rxStatus').textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+
+// =============================================================================
+// Exportación (render offline idéntico a la preescucha)
+// =============================================================================
+async function renderOffline(params, onProg) {
+  const nch = B.x.numberOfChannels, len = B.x.length, sr = B.x.sampleRate;
+  const oc = new OfflineAudioContext(nch, len, sr);
+  const g = await createGraph(oc, B, true);
+  g.apply(params);
+  const dur = len / sr;
+  for (let i = 1; i < 20; i++) { const t = dur * i / 20; oc.suspend(Math.floor(t * sr / 128) * 128 / sr).then(() => { onProg(i / 20); oc.resume(); }); }
+  g.start(0, null);
+  return oc.startRendering();
+}
+function levelMode() { return P['out.level'] || (P['out.match'] === false ? 'none' : 'match'); }
+async function renderFinal(onProg) {
+  const params = structuredClone(P), mode = levelMode();
+  // al normalizar por pico verdadero se renderiza con 12 dB de margen y sin limitar:
+  // el escalado final deja el pico en −1 dBTP sin recortar nada (sin aspereza añadida)
+  if (mode === 'tp') { params['out.gain'] = (P['out.gain'] || 0) - 12; params['out.ceil'] = 0; }
+  let out = await renderOffline(params, (f) => onProg(f * (mode === 'match' ? 0.5 : 1)));
+  if (mode === 'match') {
+    const gdb = Math.max(-12, Math.min(12, 20 * Math.log10((rms(B.x) + 1e-9) / (rms(out) + 1e-9))));
+    if (Math.abs(gdb) > 0.05) { params['out.gain'] = P['out.gain'] + gdb; out = await renderOffline(params, (f) => onProg(0.5 + f * 0.5)); }
+  } else if (mode === 'tp') normalizeTruePeak(out, -1.0);
+  return out;
+}
+// pico verdadero (true peak): sobremuestreo x4 con interpolación sinc enventanada
+function truePeak(buf) {
+  const taps = 12, os = 4, k = [];
+  for (let ph = 1; ph < os; ph++) {
+    const h = []; let sum = 0;
+    for (let i = -taps + 1; i <= taps; i++) { const t = i - ph / os, w = 0.5 + 0.5 * Math.cos(Math.PI * t / taps); const v = (t === 0 ? 1 : Math.sin(Math.PI * t) / (Math.PI * t)) * w; h.push(v); sum += v; }
+    k.push(h.map((v) => v / sum));
+  }
+  let pk = 0;
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c);
+    for (let n = taps; n < d.length - taps; n++) {
+      const a = Math.abs(d[n]); if (a > pk) pk = a;
+      if (Math.abs(d[n]) < pk * 0.5 && Math.abs(d[n + 1]) < pk * 0.5) continue; // atajo: lejos del pico no hace falta
+      for (const h of k) { let s = 0; for (let i = 0; i < h.length; i++) s += h[i] * d[n - taps + 1 + i]; if (Math.abs(s) > pk) pk = Math.abs(s); }
+    }
+  }
+  return pk;
+}
+function normalizeTruePeak(buf, targetDb) {
+  const tp = truePeak(buf); if (tp < 1e-6) return;
+  const g = Math.pow(10, targetDb / 20) / tp;
+  for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= g; }
+}
+function rms(buf) { let s = 0, n = 0; for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i += 2) { s += d[i] * d[i]; n++; } } return Math.sqrt(s / Math.max(1, n)); }
+
+function encodeWav(buf, float) {
+  const nch = buf.numberOfChannels, len = buf.length, sr = buf.sampleRate, bps = float ? 4 : 3;
+  const dataLen = len * nch * bps, hdr = float ? 58 : 44, ab = new ArrayBuffer(hdr + dataLen), v = new DataView(ab);
+  const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, hdr - 8 + dataLen, true); str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, float ? 18 : 16, true); v.setUint16(20, float ? 3 : 1, true); v.setUint16(22, nch, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * nch * bps, true); v.setUint16(32, nch * bps, true); v.setUint16(34, bps * 8, true);
+  let o = 36;
+  if (float) { v.setUint16(36, 0, true); str(38, 'fact'); v.setUint32(42, 4, true); v.setUint32(46, len, true); o = 50; }
+  str(o, 'data'); v.setUint32(o + 4, dataLen, true); o += 8;
+  const ch = Array.from({ length: nch }, (_, c) => buf.getChannelData(c));
+  const u8 = new Uint8Array(ab);
+  for (let i = 0; i < len; i++) {
+    for (let c = 0; c < nch; c++) {
+      let x = ch[c][i];
+      if (float) { v.setFloat32(o, x, true); o += 4; continue; }
+      x = x * 8388607 + (Math.random() - Math.random()); // dither TPDF
+      let s = Math.max(-8388608, Math.min(8388607, Math.round(x)));
+      if (s < 0) s += 16777216;
+      u8[o] = s & 255; u8[o + 1] = (s >> 8) & 255; u8[o + 2] = (s >> 16) & 255; o += 3;
+    }
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+function expProg(p, t) { $('expWrap').classList.remove('hidden'); $('expProg').style.width = p + '%'; $('expStage').textContent = t; }
+$('export').onclick = async () => {
+  if (!B) return;
+  const btn = $('export'); btn.disabled = true; $('saved').textContent = '';
+  try {
+    expProg(0, 'Elige la carpeta en la ventana que se ha abierto…');
+    let folder;
+    const ch = await (await fetch('/api/choose-folder', { method: 'POST' })).json();
+    if (ch.cancelled) { expProg(0, 'Descarga cancelada.'); return; }
+    if (ch.path) folder = ch.path;
+    else { folder = '~/Downloads'; alert('No se pudo abrir el selector de carpetas, se guardará en Descargas.\n' + (ch.error || '')); }
+    const fmt = $('fmt').value;
+    const out = await renderFinal((f) => expProg(f * 85, levelMode() === 'tp' ? 'Procesando en máxima calidad y normalizando a −1 dBTP…' : 'Procesando el audio en máxima calidad…'));
+    expProg(88, 'Creando el archivo WAV…');
+    await new Promise((r) => setTimeout(r, 30));
+    const blob = encodeWav(out, fmt === 'wav32');
+    expProg(93, fmt === 'mp3' ? 'Convirtiendo a MP3 320 kbps…' : 'Guardando…');
+    const name = ($('outName').value || 'stem_mejorado').trim();
+    const r = await (await fetch(`/api/save?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(name)}&format=${fmt === 'mp3' ? 'mp3' : 'wav'}`, { method: 'POST', body: blob })).json();
+    if (r.error) throw new Error(r.error);
+    expProg(100, '✅ Guardado');
+    $('saved').innerHTML = `Guardado en <b></b> · <a id="reveal">Mostrar en Finder</a>`;
+    $('saved').querySelector('b').textContent = r.path;
+    $('reveal').onclick = () => fetch('/api/reveal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: r.path }) });
+  } catch (e) { console.error(e); expProg(0, '❌ ' + (e.message || e)); }
+  finally { btn.disabled = false; }
+};
+</script>
+</body>
+</html>

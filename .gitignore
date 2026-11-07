@@ -1,0 +1,18 @@
+# entorno y temporales
+.venv/
+__pycache__/
+*.pyc
+.port
+logs/
+trabajo/
+config.json
+.DS_Store
+
+# audio del usuario y resultados (no se suben)
+Resultados/
+*.wav
+*.mp3
+*.flac
+*.aif
+*.aiff
+static/_t*
